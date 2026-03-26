@@ -1,0 +1,776 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Tabbie — Your AI Desk Buddy</title>
+<link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0e0e0e;
+    --bg2: #1a1a1a;
+    --bg3: #242424;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.15);
+    --text: #f0f0f0;
+    --text2: #999;
+    --text3: #555;
+    --accent: #1D9E75;
+    --accent2: #15735a;
+    --face-bg: #111;
+    --mono: 'Space Mono', monospace;
+    --sans: 'DM Sans', sans-serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 2rem 1rem 3rem;
+    gap: 1.5rem;
+  }
+
+  /* ── TOP BAR ── */
+  #topbar {
+    width: 100%;
+    max-width: 520px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 0 4px;
+  }
+  #logo { font-family: var(--mono); font-size: 13px; font-weight: 700; color: var(--text2); letter-spacing: 0.12em; }
+  #api-setup {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  #api-input {
+    font-family: var(--mono);
+    font-size: 11px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    color: var(--text2);
+    padding: 5px 10px;
+    border-radius: 6px;
+    width: 190px;
+    outline: none;
+    transition: border 0.2s;
+  }
+  #api-input:focus { border-color: var(--border2); color: var(--text); }
+  #api-input::placeholder { color: var(--text3); }
+  #api-save-btn {
+    font-family: var(--mono);
+    font-size: 10px;
+    padding: 5px 10px;
+    border-radius: 6px;
+    border: 1px solid var(--accent);
+    background: transparent;
+    color: var(--accent);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+  #api-save-btn:hover { background: var(--accent); color: #fff; }
+  #api-status { font-size: 11px; color: var(--text3); }
+  #api-status.ok { color: var(--accent); }
+
+  /* ── FACE ── */
+  #face-wrap {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 12px;
+  }
+  #face {
+    width: 170px;
+    height: 148px;
+    background: var(--face-bg);
+    border-radius: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-direction: column;
+    gap: 18px;
+    border: 1px solid #222;
+    cursor: pointer;
+    transition: transform 0.12s, box-shadow 0.2s;
+    position: relative;
+    user-select: none;
+  }
+  #face:hover { transform: scale(1.03); box-shadow: 0 0 0 1px #333; }
+  #face:active { transform: scale(0.97); }
+  .eyes { display: flex; gap: 26px; align-items: flex-end; }
+  .eye {
+    width: 28px; height: 36px;
+    background: white;
+    border-radius: 40px;
+    transition: height 0.08s, border-radius 0.08s, width 0.08s;
+    position: relative; overflow: hidden;
+  }
+  .eye.blink { height: 3px; border-radius: 4px; }
+  .eye.happy { height: 17px; border-radius: 50% 50% 0 0 / 70% 70% 0 0; }
+  .eye.surprised { width: 32px; height: 38px; }
+  .pupil {
+    position: absolute;
+    width: 11px; height: 11px;
+    background: #111;
+    border-radius: 50%;
+    top: 13px; left: 8px;
+    transition: transform 0.15s;
+  }
+  .mouth {
+    width: 34px; height: 12px;
+    border-bottom: 3px solid white;
+    border-radius: 0 0 30px 30px;
+    transition: all 0.2s;
+  }
+  .mouth.happy { width: 42px; height: 16px; }
+  .mouth.sad { border-bottom: none; border-top: 3px solid white; border-radius: 30px 30px 0 0; margin-top: 10px; }
+  .mouth.talk {
+    width: 20px; height: 20px;
+    background: white; border-radius: 50%;
+    border: none; animation: talkPulse 0.3s infinite alternate;
+  }
+  .mouth.thinking {
+    width: 8px; height: 8px;
+    background: white; border-radius: 50%;
+    border: none; margin-left: 14px;
+  }
+  @keyframes talkPulse { from { transform: scaleY(0.6); } to { transform: scaleY(1); } }
+
+  #status-tag {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text3);
+    letter-spacing: 0.1em;
+    height: 14px;
+  }
+
+  /* ── SPEECH BUBBLE ── */
+  #bubble {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 12px 16px;
+    font-size: 14px;
+    color: var(--text);
+    max-width: 380px;
+    min-width: 280px;
+    text-align: center;
+    line-height: 1.6;
+    min-height: 48px;
+    transition: opacity 0.3s;
+    position: relative;
+  }
+  #bubble::before {
+    content: '';
+    position: absolute;
+    top: -7px; left: 50%;
+    transform: translateX(-50%);
+    width: 12px; height: 7px;
+    background: var(--bg2);
+    clip-path: polygon(50% 0%, 0% 100%, 100% 100%);
+  }
+
+  /* ── CHAT AREA ── */
+  #chat-section {
+    width: 100%;
+    max-width: 520px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    overflow: hidden;
+  }
+  #chat-header {
+    padding: 10px 16px;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text3);
+    letter-spacing: 0.1em;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+  #chat-header::before {
+    content: '';
+    width: 7px; height: 7px;
+    background: var(--accent);
+    border-radius: 50%;
+    display: inline-block;
+  }
+  #chat-log {
+    height: 180px;
+    overflow-y: auto;
+    padding: 12px 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    scroll-behavior: smooth;
+  }
+  #chat-log::-webkit-scrollbar { width: 4px; }
+  #chat-log::-webkit-scrollbar-track { background: transparent; }
+  #chat-log::-webkit-scrollbar-thumb { background: var(--border2); border-radius: 4px; }
+  .msg {
+    max-width: 85%;
+    padding: 8px 12px;
+    border-radius: 10px;
+    font-size: 13px;
+    line-height: 1.5;
+    animation: msgIn 0.2s ease;
+  }
+  @keyframes msgIn { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+  .msg.user {
+    align-self: flex-end;
+    background: var(--bg3);
+    color: var(--text);
+    border: 1px solid var(--border);
+  }
+  .msg.tabbie {
+    align-self: flex-start;
+    background: rgba(29,158,117,0.12);
+    color: var(--text);
+    border: 1px solid rgba(29,158,117,0.25);
+  }
+  .msg.error {
+    align-self: flex-start;
+    background: rgba(200,50,50,0.1);
+    color: #e57;
+    border: 1px solid rgba(200,50,50,0.2);
+    font-size: 12px;
+  }
+  .msg-label {
+    font-family: var(--mono);
+    font-size: 9px;
+    letter-spacing: 0.08em;
+    color: var(--text3);
+    margin-bottom: 3px;
+  }
+  #chat-input-row {
+    display: flex;
+    border-top: 1px solid var(--border);
+  }
+  #chat-input {
+    flex: 1;
+    font-family: var(--sans);
+    font-size: 13px;
+    background: transparent;
+    border: none;
+    color: var(--text);
+    padding: 12px 16px;
+    outline: none;
+    resize: none;
+    height: 46px;
+  }
+  #chat-input::placeholder { color: var(--text3); }
+  #send-btn {
+    font-family: var(--mono);
+    font-size: 11px;
+    background: var(--accent);
+    border: none;
+    color: white;
+    padding: 0 18px;
+    cursor: pointer;
+    transition: background 0.15s;
+    letter-spacing: 0.05em;
+  }
+  #send-btn:hover { background: var(--accent2); }
+  #send-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+
+  /* ── PANELS ── */
+  #panels {
+    width: 100%;
+    max-width: 520px;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .panel {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 14px 16px;
+  }
+  .panel-title {
+    font-family: var(--mono);
+    font-size: 9px;
+    font-weight: 700;
+    color: var(--text3);
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin-bottom: 10px;
+  }
+  /* Tasks */
+  .task-item {
+    display: flex; align-items: center; gap: 8px;
+    margin-bottom: 6px; cursor: pointer;
+  }
+  .task-check {
+    width: 15px; height: 15px;
+    border: 1.5px solid var(--border2);
+    border-radius: 4px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 9px; flex-shrink: 0;
+    transition: all 0.15s; color: white;
+  }
+  .task-check.done { background: var(--accent); border-color: var(--accent); }
+  .task-text { font-size: 13px; color: var(--text); transition: all 0.15s; }
+  .task-text.done { text-decoration: line-through; color: var(--text3); }
+  #add-task {
+    font-family: var(--sans); font-size: 12px;
+    border: none; background: transparent; color: var(--text2);
+    outline: none; width: 100%;
+    border-top: 1px solid var(--border);
+    padding-top: 7px; margin-top: 4px;
+  }
+  #add-task::placeholder { color: var(--text3); }
+  /* Timer */
+  #timer-val {
+    font-family: var(--mono); font-size: 28px; font-weight: 700;
+    color: var(--text); letter-spacing: 0.06em; margin-bottom: 8px;
+  }
+  .timer-controls { display: flex; gap: 6px; }
+  .t-btn {
+    font-family: var(--mono); font-size: 10px;
+    padding: 5px 10px; border-radius: 6px;
+    border: 1px solid var(--border2);
+    background: transparent; color: var(--text2);
+    cursor: pointer; transition: all 0.15s;
+  }
+  .t-btn:hover { background: var(--bg3); color: var(--text); }
+  .t-btn.active { background: var(--accent); border-color: var(--accent); color: white; }
+  /* Mood */
+  #mood-row { display: flex; gap: 5px; margin-bottom: 8px; }
+  .mood-pip {
+    flex: 1; height: 8px; border-radius: 4px;
+    background: var(--bg3); cursor: pointer;
+    transition: background 0.2s;
+  }
+  .mood-pip.lit { background: var(--accent); }
+  #mood-text { font-size: 12px; color: var(--text2); }
+  /* Note */
+  #note {
+    font-family: var(--sans); font-size: 12px;
+    width: 100%; background: transparent;
+    border: none; color: var(--text2);
+    resize: none; height: 72px; outline: none; line-height: 1.6;
+  }
+  #note::placeholder { color: var(--text3); }
+
+  /* ── FOOTER ── */
+  #footer {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--text3);
+    letter-spacing: 0.08em;
+    text-align: center;
+  }
+  #footer a { color: var(--text3); text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<!-- TOP BAR -->
+<div id="topbar">
+  <div id="logo">TABBIE</div>
+  <div id="api-setup">
+    <input id="api-input" type="password" placeholder="sk-ant-... (your API key)" autocomplete="off">
+    <button id="api-save-btn" onclick="saveKey()">Save</button>
+    <span id="api-status">no key</span>
+  </div>
+</div>
+
+<!-- FACE -->
+<div id="face-wrap">
+  <div id="face" onclick="petTabbie()">
+    <div class="eyes">
+      <div class="eye" id="eye-l"><div class="pupil" id="pupil-l"></div></div>
+      <div class="eye" id="eye-r"><div class="pupil" id="pupil-r"></div></div>
+    </div>
+    <div class="mouth" id="mouth"></div>
+  </div>
+  <div id="status-tag">idle</div>
+  <div id="bubble">Hey! I'm Tabbie 👾 Your AI desk buddy. Enter your Anthropic API key above, then chat with me!</div>
+</div>
+
+<!-- CHAT -->
+<div id="chat-section">
+  <div id="chat-header">TABBIE CHAT — AI POWERED</div>
+  <div id="chat-log">
+    <div class="msg tabbie"><div class="msg-label">TABBIE</div>Hi there! I'm connected to Claude AI. Ask me anything, or just say hi!</div>
+  </div>
+  <div id="chat-input-row">
+    <textarea id="chat-input" placeholder="Talk to Tabbie..." rows="1"></textarea>
+    <button id="send-btn" onclick="sendMessage()">SEND</button>
+  </div>
+</div>
+
+<!-- PANELS -->
+<div id="panels">
+  <div class="panel">
+    <div class="panel-title">Tasks</div>
+    <div id="task-list">
+      <div class="task-item" onclick="toggleTask(this)">
+        <div class="task-check"></div><span class="task-text">Design new icon</span>
+      </div>
+      <div class="task-item" onclick="toggleTask(this)">
+        <div class="task-check done">✓</div><span class="task-text done">Review emails</span>
+      </div>
+      <div class="task-item" onclick="toggleTask(this)">
+        <div class="task-check"></div><span class="task-text">Fix that bug</span>
+      </div>
+    </div>
+    <input id="add-task" type="text" placeholder="+ add task, press Enter" onkeydown="addTask(event)">
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">Focus Timer</div>
+    <div id="timer-val">25:00</div>
+    <div class="timer-controls">
+      <button class="t-btn" id="start-btn" onclick="toggleTimer()">Start</button>
+      <button class="t-btn" onclick="resetTimer()">Reset</button>
+      <button class="t-btn" id="mode-btn" onclick="switchMode()">5 min</button>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">How are you?</div>
+    <div id="mood-row">
+      <div class="mood-pip" onclick="setMood(1)"></div>
+      <div class="mood-pip" onclick="setMood(2)"></div>
+      <div class="mood-pip lit" onclick="setMood(3)"></div>
+      <div class="mood-pip" onclick="setMood(4)"></div>
+      <div class="mood-pip" onclick="setMood(5)"></div>
+    </div>
+    <div id="mood-text">feeling ok</div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">Quick Note</div>
+    <textarea id="note" placeholder="jot something down..."></textarea>
+  </div>
+</div>
+
+<div id="footer">tabbie.local &nbsp;|&nbsp; powered by claude &nbsp;|&nbsp; <a href="https://console.anthropic.com" target="_blank">get API key</a></div>
+
+<script>
+// ────────────────────────────────────────────
+// STATE
+// ────────────────────────────────────────────
+let apiKey = localStorage.getItem('tabbie_key') || '';
+let chatHistory = [];
+let timerRunning = false, timerSecs = 25 * 60, timerInterval = null;
+let timerMode = 'work'; // work | break
+let currentMood = 3;
+const moodLabels = ['', 'rough', 'meh', 'ok', 'good', 'great!'];
+const moodEmotions = ['', 'sad', 'sad', 'idle', 'happy', 'happy'];
+
+// ────────────────────────────────────────────
+// API KEY
+// ────────────────────────────────────────────
+function saveKey() {
+  const val = document.getElementById('api-input').value.trim();
+  if (!val.startsWith('sk-ant-')) {
+    setStatus('invalid key', false);
+    return;
+  }
+  apiKey = val;
+  localStorage.setItem('tabbie_key', val);
+  document.getElementById('api-input').value = '●'.repeat(20);
+  setStatus('key saved ✓', true);
+  speak("API key saved! Now I'm powered by Claude AI. Ask me anything!", 'happy');
+}
+
+function setStatus(msg, ok) {
+  const el = document.getElementById('api-status');
+  el.textContent = msg;
+  el.className = ok ? 'ok' : '';
+}
+
+if (apiKey) {
+  document.getElementById('api-input').value = '●'.repeat(20);
+  setStatus('key loaded ✓', true);
+}
+
+// ────────────────────────────────────────────
+// FACE / EMOTIONS
+// ────────────────────────────────────────────
+function setEmotion(e) {
+  const el = document.getElementById('eye-l');
+  const er = document.getElementById('eye-r');
+  const m = document.getElementById('mouth');
+  const st = document.getElementById('status-tag');
+  el.className = 'eye'; er.className = 'eye'; m.className = 'mouth';
+  if (e === 'happy')     { el.classList.add('happy'); er.classList.add('happy'); m.classList.add('happy'); st.textContent = 'happy'; }
+  else if (e === 'sad')  { m.classList.add('sad'); st.textContent = 'sad'; }
+  else if (e === 'talk') { m.classList.add('talk'); st.textContent = 'talking...'; }
+  else if (e === 'think'){ m.classList.add('thinking'); st.textContent = 'thinking...'; }
+  else if (e === 'focus'){ st.textContent = 'focusing...'; }
+  else if (e === 'surprised') { el.classList.add('surprised'); er.classList.add('surprised'); st.textContent = 'wow!'; }
+  else { st.textContent = 'idle'; }
+}
+
+function speak(text, emotion) {
+  document.getElementById('bubble').textContent = text;
+  setEmotion(emotion || 'happy');
+  if (emotion !== 'think' && emotion !== 'talk') {
+    setTimeout(() => setEmotion('idle'), 3000);
+  }
+}
+
+function blink() {
+  const el = document.getElementById('eye-l'), er = document.getElementById('eye-r');
+  const prev = [el.className, er.className];
+  el.classList.add('blink'); er.classList.add('blink');
+  setTimeout(() => { el.className = prev[0]; er.className = prev[1]; }, 120);
+}
+
+setInterval(blink, 3000 + Math.random() * 2000);
+
+// Pupil follow mouse
+document.getElementById('face').addEventListener('mousemove', e => {
+  const rect = e.currentTarget.getBoundingClientRect();
+  const cx = rect.left + rect.width / 2, cy = rect.top + rect.height / 2;
+  const dx = Math.max(-7, Math.min(7, (e.clientX - cx) / 5));
+  const dy = Math.max(-5, Math.min(5, (e.clientY - cy) / 5));
+  document.querySelectorAll('.pupil').forEach(p => p.style.transform = `translate(${dx}px,${dy}px)`);
+});
+document.getElementById('face').addEventListener('mouseleave', () => {
+  document.querySelectorAll('.pupil').forEach(p => p.style.transform = '');
+});
+
+function petTabbie() {
+  const pats = [
+    "Hehe, that tickles!", "You're the best!", "*happy robot noises*",
+    "I'm always here for you!", "Ooh, attention! I love it!",
+    "Boop!", "Squeak!", "My circuits are glowing right now."
+  ];
+  speak(pats[Math.floor(Math.random() * pats.length)], 'happy');
+}
+
+// ────────────────────────────────────────────
+// AI CHAT
+// ────────────────────────────────────────────
+const SYSTEM_PROMPT = `You are Tabbie, an adorable and helpful AI desk companion. You live on the user's computer screen and help them stay productive, focused, and happy.
+
+Your personality:
+- Warm, playful, and encouraging — like a best friend who also happens to be super smart
+- Short and punchy responses (2-4 sentences max) unless the user asks for something detailed
+- You care about the user's wellbeing, productivity, and mental health
+- Occasionally use light robot humor
+- You can help with tasks, answer questions, give advice, explain things, write code, etc.
+- You know you have panels for: Tasks, Focus Timer, Mood tracker, and Quick Notes
+
+Keep responses concise and friendly. Never be verbose.`;
+
+function addChatMsg(role, text) {
+  const log = document.getElementById('chat-log');
+  const div = document.createElement('div');
+  div.className = 'msg ' + (role === 'user' ? 'user' : role === 'error' ? 'error' : 'tabbie');
+  const label = document.createElement('div');
+  label.className = 'msg-label';
+  label.textContent = role === 'user' ? 'YOU' : role === 'error' ? 'ERROR' : 'TABBIE';
+  div.appendChild(label);
+  div.appendChild(document.createTextNode(text));
+  log.appendChild(div);
+  log.scrollTop = log.scrollHeight;
+  return div;
+}
+
+async function sendMessage() {
+  const input = document.getElementById('chat-input');
+  const btn = document.getElementById('send-btn');
+  const text = input.value.trim();
+  if (!text) return;
+
+  if (!apiKey) {
+    speak("Please enter your Anthropic API key at the top first!", 'sad');
+    addChatMsg('error', 'No API key set. Enter your key at the top of the page.');
+    return;
+  }
+
+  input.value = '';
+  btn.disabled = true;
+  addChatMsg('user', text);
+  chatHistory.push({ role: 'user', content: text });
+
+  speak("Hmm, let me think...", 'think');
+  const thinkingMsg = addChatMsg('tabbie', '...');
+
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': apiKey,
+        'anthropic-version': '2023-06-01',
+        'anthropic-dangerous-direct-browser-access': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-sonnet-4-20250514',
+        max_tokens: 400,
+        system: SYSTEM_PROMPT,
+        messages: chatHistory
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.json().catch(() => ({}));
+      throw new Error(err.error?.message || `HTTP ${res.status}`);
+    }
+
+    const data = await res.json();
+    const reply = data.content[0]?.text || '...';
+    chatHistory.push({ role: 'assistant', content: reply });
+
+    thinkingMsg.querySelector('.msg-label').textContent = 'TABBIE';
+    thinkingMsg.lastChild.textContent = reply;
+    thinkingMsg.classList.remove('error');
+
+    speak(reply.length > 100 ? reply.slice(0, 97) + '…' : reply, 'talk');
+    setTimeout(() => setEmotion('idle'), 3500);
+
+    const log = document.getElementById('chat-log');
+    log.scrollTop = log.scrollHeight;
+
+  } catch (err) {
+    thinkingMsg.className = 'msg error';
+    thinkingMsg.querySelector('.msg-label').textContent = 'ERROR';
+    thinkingMsg.lastChild.textContent = '⚠ ' + err.message;
+    speak("Oops! Something went wrong. Check your API key.", 'sad');
+    chatHistory.pop();
+  }
+
+  btn.disabled = false;
+  input.focus();
+}
+
+document.getElementById('chat-input').addEventListener('keydown', e => {
+  if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); sendMessage(); }
+});
+
+// ────────────────────────────────────────────
+// TASKS
+// ────────────────────────────────────────────
+function toggleTask(el) {
+  const check = el.querySelector('.task-check');
+  const text = el.querySelector('.task-text');
+  const done = check.classList.toggle('done');
+  check.textContent = done ? '✓' : '';
+  text.classList.toggle('done', done);
+  if (done) speak('Task done! You absolutely crushed it!', 'happy');
+}
+
+function addTask(e) {
+  if (e.key !== 'Enter') return;
+  const input = document.getElementById('add-task');
+  const val = input.value.trim();
+  if (!val) return;
+  const list = document.getElementById('task-list');
+  const div = document.createElement('div');
+  div.className = 'task-item';
+  div.onclick = function () { toggleTask(this); };
+  div.innerHTML = '<div class="task-check"></div><span class="task-text">' + val + '</span>';
+  list.appendChild(div);
+  input.value = '';
+  speak('Added! You\'re on top of things.', 'happy');
+}
+
+// ────────────────────────────────────────────
+// TIMER
+// ────────────────────────────────────────────
+function updateTimerDisplay() {
+  const m = Math.floor(timerSecs / 60).toString().padStart(2, '0');
+  const s = (timerSecs % 60).toString().padStart(2, '0');
+  document.getElementById('timer-val').textContent = m + ':' + s;
+}
+
+function toggleTimer() {
+  const btn = document.getElementById('start-btn');
+  if (timerRunning) {
+    clearInterval(timerInterval);
+    timerRunning = false;
+    btn.textContent = 'Start'; btn.classList.remove('active');
+    setEmotion('idle');
+    speak('Timer paused. Take a breath!', 'idle');
+  } else {
+    timerRunning = true;
+    btn.textContent = 'Pause'; btn.classList.add('active');
+    setEmotion('focus');
+    speak(timerMode === 'work' ? 'Focus mode ON. Let\'s go!' : 'Break time! Rest up.', 'happy');
+    timerInterval = setInterval(() => {
+      timerSecs--;
+      updateTimerDisplay();
+      if (timerSecs <= 0) {
+        clearInterval(timerInterval);
+        timerRunning = false;
+        btn.textContent = 'Start'; btn.classList.remove('active');
+        speak(timerMode === 'work' ? '⏰ Pomodoro done! Take a break!' : '⏰ Break over! Back to work!', 'surprised');
+        setEmotion('surprised');
+        timerMode = timerMode === 'work' ? 'break' : 'work';
+        timerSecs = timerMode === 'work' ? 25 * 60 : 5 * 60;
+        document.getElementById('mode-btn').textContent = timerMode === 'work' ? '5 min' : '25 min';
+        updateTimerDisplay();
+      }
+    }, 1000);
+  }
+}
+
+function resetTimer() {
+  clearInterval(timerInterval);
+  timerRunning = false;
+  timerMode = 'work';
+  timerSecs = 25 * 60;
+  document.getElementById('start-btn').textContent = 'Start';
+  document.getElementById('start-btn').classList.remove('active');
+  document.getElementById('mode-btn').textContent = '5 min';
+  updateTimerDisplay();
+  speak('Timer reset. Ready when you are!', 'idle');
+}
+
+function switchMode() {
+  clearInterval(timerInterval);
+  timerRunning = false;
+  document.getElementById('start-btn').textContent = 'Start';
+  document.getElementById('start-btn').classList.remove('active');
+  timerMode = timerMode === 'work' ? 'break' : 'work';
+  timerSecs = timerMode === 'work' ? 25 * 60 : 5 * 60;
+  document.getElementById('mode-btn').textContent = timerMode === 'work' ? '5 min' : '25 min';
+  updateTimerDisplay();
+  speak(timerMode === 'work' ? 'Work mode: 25 minutes.' : 'Break mode: 5 minutes.', 'idle');
+}
+
+// ────────────────────────────────────────────
+// MOOD
+// ────────────────────────────────────────────
+const moodMsgs = ['', 'Rough day? I\'m here. You got this.', 'Meh happens. Keep pushing through.', 'Solid! Steady is the way.', 'Great mood! Ride this wave.', 'AMAZING!! Let\'s conquer today together!'];
+
+function setMood(n) {
+  currentMood = n;
+  document.querySelectorAll('.mood-pip').forEach((p, i) => p.classList.toggle('lit', i < n));
+  document.getElementById('mood-text').textContent = 'feeling ' + moodLabels[n];
+  speak(moodMsgs[n], moodEmotions[n]);
+}
+
+// ────────────────────────────────────────────
+// PERIODIC TIPS
+// ────────────────────────────────────────────
+const tips = [
+  'Drink some water!', 'How\'s your posture? Sit up straight!',
+  'A quick stretch helps.', 'You\'re making great progress!',
+  'Remember to blink — literally.', 'One task at a time. You\'ve got this.'
+];
+setInterval(() => {
+  if (!timerRunning && document.getElementById('status-tag').textContent === 'idle') {
+    speak(tips[Math.floor(Math.random() * tips.length)], 'happy');
+  }
+}, 45000);
+</script>
+</body>
+</html>
